@@ -12,7 +12,7 @@ export default class UsersController {
       name: schema.string(),
       email: schema.string({}, [
         rules.email(),
-        rules.unique({ table: 'users', column: 'email' }),
+        // rules.unique({ table: 'users', column: 'email' }),
       ]),
       password: schema.string({}, [
         rules.minLength(6),
