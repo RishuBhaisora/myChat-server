@@ -26,14 +26,23 @@ export default class UsersController {
 
     try {
       // Create the user instance and fill it with the validated data
-      const user = new User()
-      user.fill(validatedData)
+      // const verificationToken = Math.random().toString(36).substring(2)
+      // const verificationUrl = `http://127.0.0.1:3333/verify/${verificationToken}`
 
+      const user = new User()
+      user.fill({...validatedData})
+      
       // Save the user instance to the database
       await user.save()
-
+      // await Mail.Pend((message) => {
+      //   message
+      //     .to(user.email)
+      //     .subject('Please verify your email address')
+      //     .htmlView('emails/verify', { user, verificationUrl })
+      // })
+      
       // Return a success response
-      return response.created({ success: true, message: 'User created successfully' })
+      return response.created({ success: true, message: 'User created successfully, Please check your email for verification.' })
     } catch (error) {
       // Return an error response
       return response.badRequest({ success: false, message: error.message })

@@ -18,6 +18,12 @@ export default class User extends BaseModel {
   @column()
   public rememberMeToken: string | null
 
+  @column()
+  public verification_token: string | null
+  
+  @column()
+  public verified_email: boolean
+
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
 
