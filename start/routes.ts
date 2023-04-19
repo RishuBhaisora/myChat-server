@@ -26,19 +26,18 @@ Route.get('/', async () => {
   return { hello: "world" }
 })
 
-
-Route.get('/verify/:token', async ({ params, response }) => {
-  const user = await User.findBy('verification_token', params.token)
-
-  if (!user) {
-    return response.status(404).send('Invalid verification token.')
+Route.get('/verify/:email', async ({params ,response,request}) => {
+  const user = await User.findBy('email', params.email)
+  if (request.hasValidSignature()) {
+  if(user){
+      user.verified_email = true
+      user.verification_token = null
+      await user.save()
+    return response.send('Marking email as verified')
+    }
   }
-
-  user.verified_email = true
-  user.verification_token = null
-  await user.save()
-
-  response.send('Email address verified successfully.')
+  await user?.delete()
+  return response.status(404).send(`${params.email}${request.hasValidSignature()}Signature is missing or URL was tampered.`)
 })
 
 Route.post('/register','UsersController.create')

@@ -1,6 +1,8 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import User from 'App/Models/User'
 import { schema, rules } from '@ioc:Adonis/Core/Validator'
+import Route from '@ioc:Adonis/Core/Route'
+import Mail from '@ioc:Adonis/Addons/Mail'
 
 
 export default class UsersController {
@@ -8,6 +10,7 @@ export default class UsersController {
 
   public async create({ request, response }: HttpContextContract) {
     // Define the validation schema
+    // const baseUrl=Env.get('PG_HOST')+Env.get('PG_PORT')
     const validationSchema = schema.create({
       name: schema.string(),
       email: schema.string({}, [
@@ -23,28 +26,32 @@ export default class UsersController {
     const validatedData = await request.validate({
       schema: validationSchema,
     })
+    const user = new User()
+    user.fill({...validatedData})
 
     try {
-      // Create the user instance and fill it with the validated data
-      // const verificationToken = Math.random().toString(36).substring(2)
-      // const verificationUrl = `http://127.0.0.1:3333/verify/${verificationToken}`
-
-      const user = new User()
-      user.fill({...validatedData})
-      
-      // Save the user instance to the database
+     
+      const verificationUrl = Route.makeSignedUrl('/verify/:email', {
+        email: validatedData.email,
+      },
+      {
+        expiresIn: '20m',
+      })
+          
       await user.save()
-      // await Mail.Pend((message) => {
-      //   message
-      //     .to(user.email)
-      //     .subject('Please verify your email address')
-      //     .htmlView('emails/verify', { user, verificationUrl })
-      // })
-      
-      // Return a success response
+      await Mail.send((message) => {
+        message
+          .to(user.email)
+          .subject('Please verify your email address')
+          .html(`Hi ${user.name},<br><br>
+          Please click on the following link to verify your email address:<br>
+          <a href="https://chat-api-e6rf.onrender.com${verificationUrl}">click to varify</a><br><br>
+          If you didn't request this email, you can safely ignore it.`)
+      })
       return response.created({ success: true, message: 'User created successfully, Please check your email for verification.' })
     } catch (error) {
       // Return an error response
+      await user.delete()
       return response.badRequest({ success: false, message: error.message })
     }
   }
