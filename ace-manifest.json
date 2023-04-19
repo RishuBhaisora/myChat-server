@@ -1,5 +1,17 @@
 {
   "commands": {
+    "delete:all_users": {
+      "settings": {
+        "loadApp": true,
+        "stayAlive": false
+      },
+      "commandPath": "./commands/DeleteAllUsers",
+      "commandName": "delete:all_users",
+      "description": "Delete all users from the database",
+      "args": [],
+      "aliases": [],
+      "flags": []
+    },
     "dump:rcfile": {
       "settings": {},
       "commandPath": "@adonisjs/core/build/commands/DumpRc",
