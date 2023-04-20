@@ -10,6 +10,7 @@
 */
 
 import Server from '@ioc:Adonis/Core/Server'
+import User from 'App/Models/User';
 
 /*
 |--------------------------------------------------------------------------
@@ -42,3 +43,11 @@ Server.middleware.register([
 */
 Server.middleware.registerNamed({
 })
+const cron = require('node-cron');
+cron.schedule('*/20 * * * *', async () => {
+const users=await User.all()
+  for (let user of  users) {
+    if(user.verified_email===false){
+    await user.delete();
+  }}
+});

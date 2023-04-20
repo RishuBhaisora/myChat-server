@@ -37,7 +37,7 @@ Route.get('/verify/:email', async ({params ,response,request}) => {
     }
   }
   await user?.delete()
-  return response.status(404).send(`${params.email}${request.hasValidSignature()}Signature is missing or URL was tampered.`)
+  return response.status(404).send(`Signature is missing or URL was tampered.`)
 })
 
 Route.post('/register','UsersController.create')
