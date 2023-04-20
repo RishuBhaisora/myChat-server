@@ -42,10 +42,10 @@ export default class UsersController {
       await Mail.send((message) => {
         message
           .to(user.email)
-          .subject('Please verify your email address')
+          .subject('Welcome to TalkBase, Please verify your email address ')
           .html(`Hi ${user.name},<br><br>
           Please click on the following link to verify your email address:<br>
-          <a href="https://chat-api-e6rf.onrender.com${verificationUrl}">click to varify</a><br><br>
+          <a href="https://chat-api-e6rf.onrender.com${verificationUrl}">Click to varify</a><br><br>
           If you didn't request this email, you can safely ignore it.`)
       })
       return response.created({ success: true, message: 'User created successfully, Please check your email for verification.' })
