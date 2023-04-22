@@ -15,13 +15,10 @@ export default class User extends BaseModel {
   @column({ serializeAs: null })
   public password: string
 
-  @column()
-  public rememberMeToken: string | null
-
-  @column()
+  @column({ serializeAs: null })
   public verification_token: string | null
   
-  @column()
+  @column({ serializeAs: null })
   public verified_email: boolean
 
   @column.dateTime({ autoCreate: true })

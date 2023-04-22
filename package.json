@@ -26,6 +26,7 @@
     "@adonisjs/lucid": "^18.3.0",
     "@adonisjs/mail": "^8.1.2",
     "@adonisjs/repl": "^3.1.11",
+    "jsonwebtoken": "^9.0.0",
     "luxon": "^3.3.0",
     "node-cron": "^3.0.2",
     "pg": "^8.10.0",
