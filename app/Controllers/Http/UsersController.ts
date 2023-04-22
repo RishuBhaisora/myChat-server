@@ -6,7 +6,7 @@ import Mail from "@ioc:Adonis/Addons/Mail";
 import Hash from "@ioc:Adonis/Core/Hash";
 const jwt = require("jsonwebtoken");
 
-const baseUrl='https://chat-api-e6rf.onrender.com'
+const baseUrl = "https://chat-api-e6rf.onrender.com";
 // const baseUrl = "http://127.0.0.1:3333";
 const secret = "mySuperSecretKey";
 export default class UsersController {
@@ -83,7 +83,7 @@ export default class UsersController {
       return response.unauthorized("Invalid Password");
     }
     const token = jwt.sign({ email }, secret, {
-      expiresIn: "10s",
+      expiresIn: "10h",
     });
     return response.json({ user, token });
   }
