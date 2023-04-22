@@ -33,7 +33,7 @@ Route.get('/verify/:email', async ({params ,response,request}) => {
       user.verified_email = true
       user.verification_token = null
       await user.save()
-    return response.send('Marking email as verified')
+    return response.send('Congratulations verified successfully, Try login')
     }
   }
   await user?.delete()
@@ -41,3 +41,4 @@ Route.get('/verify/:email', async ({params ,response,request}) => {
 })
 
 Route.post('/register','UsersController.create')
+Route.post('/login','UsersController.login')
