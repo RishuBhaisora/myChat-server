@@ -62,10 +62,14 @@ export default class UsersController {
   public async login({ request, response }: HttpContextContract) {
     const reqToken = request.all().token;
     if (reqToken) {
-      const decoded = jwt.verify(reqToken, secret);
-      const user = await User.findBy("email", decoded.email);
-      if (user) {
-        return response.json({ user, token: reqToken });
+      try {
+        const decoded = jwt.verify(reqToken, secret);       
+        if (decoded.email) {
+          const user = await User.findByOrFail("email", decoded.email);
+          return response.json({ user, token: reqToken });
+        }
+      } catch (e) {
+        return response.unauthorized("jwt expired")
       }
     }
     const { email, password } = request.all();
@@ -83,7 +87,7 @@ export default class UsersController {
       return response.unauthorized("Invalid Password");
     }
     const token = jwt.sign({ email }, secret, {
-      expiresIn: "10h",
+      expiresIn: "10s",
     });
     return response.json({ user, token });
   }
