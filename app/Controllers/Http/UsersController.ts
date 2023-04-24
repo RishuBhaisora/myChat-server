@@ -87,7 +87,7 @@ export default class UsersController {
       return response.unauthorized("Invalid Password");
     }
     const token = jwt.sign({ email }, secret, {
-      expiresIn: "10s",
+      expiresIn: "10h",
     });
     return response.json({ user, token });
   }
