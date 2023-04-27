@@ -9,6 +9,7 @@ const jwt = require("jsonwebtoken");
 const baseUrl = "https://chat-api-e6rf.onrender.com";
 // const baseUrl = "http://127.0.0.1:3333";
 const secret = "mySuperSecretKey";
+
 export default class UsersController {
   public async index({}: HttpContextContract) {}
 
@@ -63,13 +64,13 @@ export default class UsersController {
     const reqToken = request.all().token;
     if (reqToken) {
       try {
-        const decoded = jwt.verify(reqToken, secret);       
+        const decoded = jwt.verify(reqToken, secret);
         if (decoded.email) {
           const user = await User.findByOrFail("email", decoded.email);
           return response.json({ user, token: reqToken });
         }
       } catch (e) {
-        return response.unauthorized("jwt expired")
+        return response.unauthorized("jwt expired");
       }
     }
     const { email, password } = request.all();
@@ -91,12 +92,4 @@ export default class UsersController {
     });
     return response.json({ user, token });
   }
-
-  public async show({}: HttpContextContract) {}
-
-  public async edit({}: HttpContextContract) {}
-
-  public async update({}: HttpContextContract) {}
-
-  public async destroy({}: HttpContextContract) {}
 }

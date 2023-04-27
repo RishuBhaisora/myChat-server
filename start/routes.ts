@@ -18,27 +18,31 @@
 |
 */
 
-import Route from '@ioc:Adonis/Core/Route'
-import User from 'App/Models/User'
+import Route from "@ioc:Adonis/Core/Route";
+import User from "App/Models/User";
 
-Route.get('/', async () => {
-  
-  return { hello: "world" }
-})
+Route.get("/", async () => {
+  return User.all();
+});
 
-Route.get('/verify/:email', async ({params ,response,request}) => {
-  const user = await User.findBy('email', params.email)
+Route.get("/verify/:email", async ({ params, response, request }) => {
+  const user = await User.findBy("email", params.email);
   if (request.hasValidSignature()) {
-  if(user){
-      user.verified_email = true
-      user.verification_token = null
-      await user.save()
-    return response.send('Congratulations verified successfully, Try login')
+    if (user) {
+      user.verified_email = true;
+      user.verification_token = null;
+      await user.save();
+      return response.send("Congratulations verified successfully, Try login");
     }
   }
-  await user?.delete()
-  return response.status(404).send(`Signature is missing or URL was tampered.`)
-})
+  await user?.delete();
+  return response.status(404).send(`Signature is missing or URL was tampered.`);
+});
 
-Route.post('/register','UsersController.create')
-Route.post('/login','UsersController.login')
+Route.post("/register", "UsersController.create");
+Route.post("/login", "UsersController.login");
+Route.post("/sendFriendRequest", "FriendshipsController.sendFriendRequest");
+Route.post("/acceptFriendRequest", "FriendshipsController.acceptFriendRequest");
+Route.post("/rejectFriendRequest", "FriendshipsController.rejectFriendRequest");
+Route.post("/removeFriend", "FriendshipsController.removeFriend");
+
