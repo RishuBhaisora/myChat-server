@@ -8,6 +8,9 @@ export default class FriendshipsController {
   public async sendFriendRequest({ request, response }: HttpContextContract) {
     try {
       const { friend_id, token } = request.all();
+      if(!friend_id){
+        throw "friend_id required.";
+      }
       const decoded = jwt.verify(token, secret);
       const user = await User.findByOrFail("email", decoded.email);
       const friend = await User.findOrFail(friend_id);
@@ -48,14 +51,17 @@ export default class FriendshipsController {
       throw "Invalid friend_id";
     } catch (error) {
       return response
-        .status(500)
-        .json({ message: error ?? "Something went wrong." });
+        .status(404)
+        .json({ message:   "Something went wrong." });
     }
   }
 
   public async acceptFriendRequest({ request, response }: HttpContextContract) {
     try {
       const { friend_id, token } = request.all();
+      if(!friend_id){
+        throw "friend_id required.";
+      }
       const decoded = jwt.verify(token, secret);
       const user = await User.findByOrFail("email", decoded.email);
       const friend = await User.findOrFail(friend_id);
@@ -111,14 +117,17 @@ export default class FriendshipsController {
       throw "Invalid friend_id.";
     } catch (error) {
       return response
-        .status(500)
-        .json({ message: error ?? "Something went wrong." });
+        .status(404)
+        .json({ message:  "Something went wrong." });
     }
   }
 
   public async rejectFriendRequest({ request, response }: HttpContextContract) {
     try {
       const { friend_id, token } = request.all();
+      if(!friend_id){
+        throw "friend_id required.";
+      }
       const decoded = jwt.verify(token, secret);
       const user = await User.findByOrFail("email", decoded.email);
       const friend = await User.findOrFail(friend_id);
@@ -153,14 +162,17 @@ export default class FriendshipsController {
       throw "Invalid friend_id.";
     } catch (error) {
       return response
-        .status(500)
-        .json({ message: error ?? "Something went wrong." });
+        .status(404)
+        .json({ message:  "Something went wrong." });
     }
   }
 
   public async removeFriend({ request, response }: HttpContextContract) {
     try {
       const { friend_id, token } = request.all();
+      if(!friend_id){
+        throw "friend_id required.";
+      }
       const decoded = jwt.verify(token, secret);
       const user = await User.findByOrFail("email", decoded.email);
       const friend = await User.findOrFail(friend_id);
@@ -187,8 +199,8 @@ export default class FriendshipsController {
       throw "Invalid friend_id.";
     } catch (error) {
       return response
-        .status(500)
-        .json({ message: error ?? "Something went wrong." });
+        .status(404)
+        .json({ message:  "Something went wrong." });
     }
   }
 }
