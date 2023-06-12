@@ -23,7 +23,7 @@ export default class Message extends BaseModel {
 
   @column({ columnName: "is_seen" })
   public isSeen: boolean;
-  
+
   @belongsTo(() => UserFriendChat, { foreignKey: 'userFriendChatId' })
   public chat: BelongsTo<typeof UserFriendChat>;
 

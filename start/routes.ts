@@ -18,6 +18,7 @@
 |
 */
 
+import Encryption from "@ioc:Adonis/Core/Encryption";
 import Route from "@ioc:Adonis/Core/Route";
 import Message from "App/Models/ChatMessage";
 import User from "App/Models/User";
@@ -189,26 +190,93 @@ Route.post("/sendMessage", async ({ request, response }) => {
       .pivotQuery()
       .where("friend_id", user.id)
       .firstOrFail();
-
+    const encryptedMessage = Encryption.encrypt(message);
     const userMessage = new Message();
     userMessage.fill({
       senderId: user.id,
       userFriendChatId: userChat.id,
-      content: message,
+      content: encryptedMessage,
     });
     const friendMessage = new Message();
     friendMessage.fill({
       senderId: user.id,
       userFriendChatId: friendChat.id,
-      content: message,
+      content: encryptedMessage,
     });
     await userMessage.save();
     await friendMessage.save();
 
-    return response
-      .status(200)
-      .send(await Message.query().where("userFriendChatId", userChat.id));
+    const messages = await Message.query().where(
+      "userFriendChatId",
+      userChat.id
+    );
+
+    return response.status(200).send(
+      messages.map((m) => {
+        if (m.isEncrypted) {
+          m.isEncrypted = false;
+          m.content = Encryption.decrypt(m.content) as string;
+        }
+        return m;
+      })
+    );
   } catch (e) {
-    return response.status(404).json({ message: e.message });
+    return response.status(404).json({ message: "Something went wrong." });
+  }
+});
+
+Route.post("/userFriendMessages", async ({ request, response }) => {
+  try {
+    const { token, friend_id } = request.all();
+    const decoded = jwt.verify(token, "mySuperSecretKey");
+    const user = await User.findByOrFail("email", decoded.email);
+    const friend = await User.findByOrFail("id", friend_id);
+
+    const userChat = await user
+      .related("chats")
+      .pivotQuery()
+      .where("friend_id", friend_id)
+      .firstOrFail();
+
+    const friendChat = await friend
+      .related("chats")
+      .pivotQuery()
+      .where("friend_id", user.id)
+      .firstOrFail();
+
+    const messages = await Message.query().where(
+      "userFriendChatId",
+      userChat.id
+    );
+
+    const friendMessages = await Message.query().where(
+      "userFriendChatId",
+      friendChat.id
+    );
+
+    friendMessages.map((m) => {
+      if (m.senderId === friend_id) {
+        m.isSeen = true;
+      }
+      m.save();
+    });
+    messages.map((m) => {
+      if (m.senderId === friend_id) {
+        m.isSeen = true;
+      }
+      m.save();
+    });
+    return response.status(200).send(
+      messages.map((m) => {
+        const decryptedMessage = { ...m.$attributes };
+        if (decryptedMessage.isEncrypted) {
+          decryptedMessage.isEncrypted = false;
+          decryptedMessage.content = Encryption.decrypt(m.content) as string;
+        }
+        return decryptedMessage;
+      })
+    );
+  } catch (e) {
+    return response.status(404).json({ message: "Something went wrong." });
   }
 });

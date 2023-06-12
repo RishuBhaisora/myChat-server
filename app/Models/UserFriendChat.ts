@@ -1,7 +1,6 @@
 import { DateTime } from "luxon";
-import { BaseModel, BelongsTo, HasMany, belongsTo, column, hasMany } from "@ioc:Adonis/Lucid/Orm";
+import { BaseModel, BelongsTo,  belongsTo, column } from "@ioc:Adonis/Lucid/Orm";
 import User from "./User";
-import Message from "./ChatMessage";
 
 export default class UserFriendChat extends BaseModel {
   @column({ isPrimary: true })
@@ -22,9 +21,6 @@ export default class UserFriendChat extends BaseModel {
     localKey: "friend_id",
   })
   public friend: BelongsTo<typeof User>;
-
-  @hasMany(() => Message)
-  public messages: HasMany<typeof Message>;
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime;
