@@ -7,6 +7,7 @@ import {
   manyToMany,
   ManyToMany,
 } from "@ioc:Adonis/Lucid/Orm";
+import UserFriendChat from "./UserFriendChat";
 
 export default class User extends BaseModel {
   @column({ isPrimary: true })
@@ -63,6 +64,16 @@ export default class User extends BaseModel {
   })
   public friendRequestsSent: ManyToMany<typeof User>;
 
+  @manyToMany(() => UserFriendChat, {
+    pivotTable: "chats",
+    localKey: "id",
+    relatedKey: "id",
+    pivotForeignKey: "user_id",
+    pivotRelatedForeignKey: "friend_id",
+    pivotColumns:["messages"]
+  })
+  public chats: ManyToMany<typeof UserFriendChat>;
+  
   @beforeSave()
   public static async hashPassword(user: User) {
     if (user.$dirty.password) {
