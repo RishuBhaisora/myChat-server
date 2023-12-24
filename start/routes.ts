@@ -109,15 +109,18 @@ Route.post("/friendRequests", async ({ request, response }) => {
       .related("friendRequests")
       .pivotQuery()
       .where("status", "pending");
+    const modifiedRequests: any[] = [];
 
-    const modifiedRequests = friendRequests.reduce(
-      (prev, req) => [
-        ...prev,
-        { ...req, user_id: req.friend_id, friend_id: req.user_id },
-      ],
-      []
-    );
-
+    for (let i = 0; i < friendRequests.length; i++) {
+      const data = friendRequests[i];
+      const friend_details = await User.findByOrFail("id", data.user_id);
+      modifiedRequests.push({
+        ...data,
+        user_id: data.friend_id,
+        friend_id: data.user_id,
+        friend_details,
+      });
+    }
     return response.status(200).send(modifiedRequests);
   } catch (e) {
     return response.status(404).json({ message: "Something went wrong." });
