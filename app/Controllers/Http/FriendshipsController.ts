@@ -52,7 +52,7 @@ export default class FriendshipsController {
     } catch (error) {
       return response
         .status(404)
-        .json({ message:   "Something went wrong." });
+        .json({ message:  error ??   "Something went wrong." });
     }
   }
 
@@ -118,7 +118,7 @@ export default class FriendshipsController {
     } catch (error) {
       return response
         .status(404)
-        .json({ message:  "Something went wrong." });
+        .json({ message: error ??  "Something went wrong." });
     }
   }
 
@@ -163,7 +163,7 @@ export default class FriendshipsController {
     } catch (error) {
       return response
         .status(404)
-        .json({ message:  "Something went wrong." });
+        .json({ message:  error ??  "Something went wrong." });
     }
   }
 
@@ -200,7 +200,7 @@ export default class FriendshipsController {
     } catch (error) {
       return response
         .status(404)
-        .json({ message:  "Something went wrong." });
+        .json({ message:  error ??  "Something went wrong." });
     }
   }
 }
