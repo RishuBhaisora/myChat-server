@@ -24,13 +24,42 @@ import Message from "App/Models/ChatMessage";
 import User from "App/Models/User";
 import { DateTime } from "luxon";
 const jwt = require("jsonwebtoken");
+import { schema, rules } from "@ioc:Adonis/Core/Validator";
+
 
 Route.post("/register", "UsersController.create");
 Route.post("/login", "UsersController.login");
+Route.post("/requestPasswordResetOtp", "UsersController.requestPasswordResetOtp");
 Route.post("/sendFriendRequest", "FriendshipsController.sendFriendRequest");
 Route.post("/acceptFriendRequest", "FriendshipsController.acceptFriendRequest");
 Route.post("/rejectFriendRequest", "FriendshipsController.rejectFriendRequest");
 Route.post("/removeFriend", "FriendshipsController.removeFriend");
+
+Route.post("/resetPassword", async ({response, request }) => {
+  const { email, otp } = request.all();
+
+  const user = await User.findBy("email", email);
+    if (user) {
+   // Verify the OTP
+   const user = await User.findBy('email', email);
+    if (!user || user.verification_token !== otp) {
+      return response.status(400).json({ error: 'Invalid OTP' });
+    }
+    const passwordValidationSchema = schema.create({
+      newPassword: schema.string({}, [rules.minLength(8)]),
+    });
+    const validatedData = await request.validate({
+      schema: passwordValidationSchema,
+    });
+
+    user.password = validatedData.newPassword;
+    user.verification_token = null;
+    await user.save();
+
+    return response.status(200).json({ message: 'Password reset successful' });
+    }
+});
+
 
 Route.get("/verify/:email", async ({ params, response, request }) => {
   const user = await User.findBy("email", params.email);

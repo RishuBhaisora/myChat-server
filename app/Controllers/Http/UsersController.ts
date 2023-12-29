@@ -9,10 +9,12 @@ const jwt = require("jsonwebtoken");
 const baseUrl = "https://chat-api-e6rf.onrender.com";
 // const baseUrl = "http://127.0.0.1:3333";
 const secret = "mySuperSecretKey";
+function generateNumericOtp(length) {
+  const otp = Array.from({ length }, () => Math.floor(Math.random() * 10)).join('');
+  return otp;
+}
 
 export default class UsersController {
-  public async index({}: HttpContextContract) {}
-
   public async create({ request, response }: HttpContextContract) {
     const validationSchema = schema.create({
       name: schema.string(),
@@ -57,7 +59,10 @@ export default class UsersController {
       });
     } catch (error) {
       await user.delete();
-      return response.badRequest({ success: false, message: "something went wrong" });
+      return response.badRequest({
+        success: false,
+        message: "something went wrong",
+      });
     }
   }
   public async login({ request, response }: HttpContextContract) {
@@ -91,5 +96,32 @@ export default class UsersController {
       expiresIn: "10h",
     });
     return response.json({ user, token });
+  }
+  public async requestPasswordResetOtp({ request, response }: HttpContextContract) {
+    const email = request.all().email;
+    const user = await User.findBy("email", email);
+    if (!user || !user.verified_email) {
+      return response.unauthorized("Invalid Email");
+    }
+
+    // Generate a random OTP
+    const otp = generateNumericOtp(5);
+
+    // Store the OTP in the verification_token column
+    user.verification_token = otp;
+    await user.save();
+
+    // Send the OTP to the user's email
+    await Mail.send((message) => {
+      message
+        .to(user.email)
+        .subject("Password Reset OTP")
+        .html(`<p>Your OTP for password reset is: ${otp}</p>`);
+    });
+
+    return response.created({
+      success: true,
+      message: "Recovery Mail sent successfully, Please check your email.",
+    });
   }
 }
