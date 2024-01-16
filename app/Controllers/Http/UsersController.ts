@@ -75,22 +75,20 @@ export default class UsersController {
           return response.json({ user, token: reqToken });
         }
       } catch (e) {
-        return response.unauthorized("jwt expired");
+        return response.unauthorized({message: "jwt expired"});
       }
     }
     const { email, password } = request.all();
     const user = await User.findBy("email", email);
     if (!user) {
-      return response.unauthorized("Invalid Email");
+      return response.unauthorized({message: "Invalid Email"});
     }
     if (!user.verified_email) {
-      return response.unauthorized(
-        "Email is not varified, Please check your gmail to varify"
-      );
+      return response.unauthorized({message: "Email is not varified, Please check your gmail to varify"});
     }
     const varified = await Hash.verify(user.password, password);
     if (!varified) {
-      return response.unauthorized("Invalid Password");
+      return response.unauthorized({message: "Invalid Password"});
     }
     const token = jwt.sign({ email }, secret, {
       expiresIn: "10h",
@@ -101,7 +99,7 @@ export default class UsersController {
     const email = request.all().email;
     const user = await User.findBy("email", email);
     if (!user || !user.verified_email) {
-      return response.unauthorized("Invalid Email");
+      return response.unauthorized({message: "Invalid Email"});
     }
 
     // Generate a random OTP
