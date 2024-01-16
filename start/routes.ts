@@ -43,7 +43,7 @@ Route.post("/resetPassword", async ({response, request }) => {
    // Verify the OTP
    const user = await User.findBy('email', email);
     if (!user || user.verification_token !== otp) {
-      return response.status(400).json({ error: 'Invalid OTP' });
+      return response.status(400).json({ message: 'Invalid OTP' });
     }
     const passwordValidationSchema = schema.create({
       newPassword: schema.string({}, [rules.minLength(8)]),
