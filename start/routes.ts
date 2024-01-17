@@ -26,24 +26,27 @@ import { DateTime } from "luxon";
 const jwt = require("jsonwebtoken");
 import { schema, rules } from "@ioc:Adonis/Core/Validator";
 
-
 Route.post("/register", "UsersController.create");
 Route.post("/login", "UsersController.login");
-Route.post("/requestPasswordResetOtp", "UsersController.requestPasswordResetOtp");
+Route.post(
+  "/requestPasswordResetOtp",
+  "UsersController.requestPasswordResetOtp"
+);
 Route.post("/sendFriendRequest", "FriendshipsController.sendFriendRequest");
 Route.post("/acceptFriendRequest", "FriendshipsController.acceptFriendRequest");
 Route.post("/rejectFriendRequest", "FriendshipsController.rejectFriendRequest");
+Route.post("/cancelFriendRequest", "FriendshipsController.cancelFriendRequest");
 Route.post("/removeFriend", "FriendshipsController.removeFriend");
 
-Route.post("/resetPassword", async ({response, request }) => {
+Route.post("/resetPassword", async ({ response, request }) => {
   const { email, otp } = request.all();
 
   const user = await User.findBy("email", email);
-    if (user) {
-   // Verify the OTP
-   const user = await User.findBy('email', email);
+  if (user) {
+    // Verify the OTP
+    const user = await User.findBy("email", email);
     if (!user || user.verification_token !== otp) {
-      return response.status(400).json({ message: 'Invalid OTP' });
+      return response.status(400).json({ message: "Invalid OTP" });
     }
     const passwordValidationSchema = schema.create({
       newPassword: schema.string({}, [rules.minLength(8)]),
@@ -56,8 +59,8 @@ Route.post("/resetPassword", async ({response, request }) => {
     user.verification_token = null;
     await user.save();
 
-    return response.status(200).json({ message: 'Password reset successful' });
-    }
+    return response.status(200).json({ message: "Password reset successful" });
+  }
 });
 
 
@@ -85,10 +88,23 @@ Route.post("/suggestedFriends", async ({ request, response }) => {
       .related("friends")
       .pivotQuery()
       .where("status", "accepted");
+
+    const prevRequests = await user
+      .related("friendRequests")
+      .pivotQuery()
+      .where("status", "pending");
+
+    const sentFriendRequests = await user
+      .related("friendRequestsSent")
+      .pivotQuery()
+      .where("status", "pending");
+
     const filteredUsers = users.filter(
       (u) =>
         u.email !== decoded.email &&
-        !userFriends.find((f) => u.id === f.friend_id)
+        !userFriends.some((f) => u.id === f.friend_id) &&
+        !prevRequests.some((f) => f.user_id === u.id) &&
+        !sentFriendRequests.some((f) => f.friend_id === u.id)
     );
 
     return response.status(200).send(filteredUsers);
@@ -107,7 +123,17 @@ Route.post("/friends", async ({ request, response }) => {
       .pivotQuery()
       .where("status", "accepted");
 
-    return response.status(200).send(userFriends);
+    const modifiedRequests: any[] = [];
+
+    for (let i = 0; i < userFriends.length; i++) {
+      const data = userFriends[i];
+      const friend_details = await User.findByOrFail("id", data.friend_id);
+      modifiedRequests.push({
+        ...data,
+        friend_details,
+      });
+    }
+    return response.status(200).send(modifiedRequests);
   } catch (e) {
     return response.status(404).json({ message: "Something went wrong." });
   }
@@ -122,8 +148,17 @@ Route.post("/friendRequestsSent", async ({ request, response }) => {
       .related("friendRequestsSent")
       .pivotQuery()
       .where("status", "pending");
+    const modifiedRequests: any[] = [];
 
-    return response.status(200).send(sentRequests);
+    for (let i = 0; i < sentRequests.length; i++) {
+      const data = sentRequests[i];
+      const friend_details = await User.findByOrFail("id", data.friend_id);
+      modifiedRequests.push({
+        ...data,
+        friend_details,
+      });
+    }
+    return response.status(200).send(modifiedRequests);
   } catch (e) {
     return response.status(404).json({ message: "Something went wrong." });
   }
