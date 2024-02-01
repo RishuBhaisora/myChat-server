@@ -318,6 +318,10 @@ export default class FriendshipsController {
               friend_details,
             });
           }
+          
+          await user.related("chats").detach([friend.id])
+          await friend.related("chats").detach([user.id])
+
           return response.status(200).json({
             success: true,
             message: "Friend removed successfully.",

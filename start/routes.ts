@@ -191,54 +191,6 @@ Route.post("/friendRequests", async ({ request, response }) => {
   }
 });
 
-Route.post("/chat", async ({ request, response }) => {
-  try {
-    const { token, friend_id } = request.all();
-    const decoded = jwt.verify(token, "mySuperSecretKey");
-    const user = await User.findByOrFail("email", decoded.email);
-    const friend = await User.findByOrFail("id", friend_id);
-
-    const userFriends = await user
-      .related("friends")
-      .pivotQuery()
-      .where("status", "accepted");
-
-    if (userFriends.find((u) => u.friend_id === friend.id)) {
-      const chat = await user
-        .related("chats")
-        .pivotQuery()
-        .where("friend_id", friend.id)
-        .first();
-
-      if (!chat) {
-        await user.related("chats").attach({
-          [friend.id]: {
-            created_at: DateTime.now(),
-            updated_at: DateTime.now(),
-          },
-        });
-        await friend.related("chats").attach({
-          [user.id]: {
-            created_at: DateTime.now(),
-            updated_at: DateTime.now(),
-          },
-        });
-      }
-      const finalChat = await user
-        .related("chats")
-        .pivotQuery()
-        .where("friend_id", friend_id)
-        .first();
-
-      return response.status(200).send({ chat: finalChat });
-    } else {
-      throw "";
-    }
-  } catch (e) {
-    return response.status(404).json({ message: "Something went wrong." });
-  }
-});
-
 Route.post("/sendMessage", async ({ request, response }) => {
   try {
     const { token, friend_id, message } = request.all();
@@ -273,53 +225,13 @@ Route.post("/sendMessage", async ({ request, response }) => {
     await userMessage.save();
     await friendMessage.save();
 
-    const messages = await Message.query().where(
-      "userFriendChatId",
-      userChat.id
-    );
+    const messages = await Message.query()
+      .orderBy("created_at", "asc")
+      .where("userFriendChatId", userChat.id);
 
-    return response.status(200).send(
-      messages.map((m) => {
-        if (m.isEncrypted) {
-          m.isEncrypted = false;
-          m.content = Encryption.decrypt(m.content) as string;
-        }
-        return m;
-      })
-    );
-  } catch (e) {
-    return response.status(404).json({ message: "Something went wrong." });
-  }
-});
-
-Route.post("/userFriendMessages", async ({ request, response }) => {
-  try {
-    const { token, friend_id } = request.all();
-    const decoded = jwt.verify(token, "mySuperSecretKey");
-    const user = await User.findByOrFail("email", decoded.email);
-    const friend = await User.findByOrFail("id", friend_id);
-
-    const userChat = await user
-      .related("chats")
-      .pivotQuery()
-      .where("friend_id", friend_id)
-      .firstOrFail();
-
-    const friendChat = await friend
-      .related("chats")
-      .pivotQuery()
-      .where("friend_id", user.id)
-      .firstOrFail();
-
-    const messages = await Message.query().where(
-      "userFriendChatId",
-      userChat.id
-    );
-
-    const friendMessages = await Message.query().where(
-      "userFriendChatId",
-      friendChat.id
-    );
+    const friendMessages = await Message.query()
+      .orderBy("created_at", "asc")
+      .where("userFriendChatId", friendChat.id);
 
     friendMessages.map((m) => {
       if (m.senderId === friend_id) {
@@ -333,17 +245,199 @@ Route.post("/userFriendMessages", async ({ request, response }) => {
       }
       m.save();
     });
-    return response.status(200).send(
-      messages.map((m) => {
-        const decryptedMessage = { ...m.$attributes };
-        if (decryptedMessage.isEncrypted) {
-          decryptedMessage.isEncrypted = false;
-          decryptedMessage.content = Encryption.decrypt(m.content) as string;
-        }
-        return decryptedMessage;
-      })
-    );
+    const friend_details = await User.findByOrFail("id", friend_id);
+    return response.status(200).send({
+      chat: {
+        ...userChat,
+        friend_details,
+        messages: messages.map((m) => {
+          const decryptedMessage = { ...m.$attributes };
+          if (decryptedMessage.isEncrypted) {
+            decryptedMessage.isEncrypted = false;
+            decryptedMessage.content = Encryption.decrypt(
+              m.content
+            ) as string;
+          }
+          return decryptedMessage;
+        }),
+      },
+    });
   } catch (e) {
     return response.status(404).json({ message: "Something went wrong." });
+  }
+});
+
+Route.post("/userFriendMessages", async ({ request, response }) => {
+  try {
+    const { token, friend_id } = request.all();
+    const decoded = jwt.verify(token, "mySuperSecretKey");
+    const user = await User.findByOrFail("email", decoded.email);
+    const friend = await User.findByOrFail("id", friend_id);
+
+    const userFriend = await user
+      .related("friends")
+      .pivotQuery()
+      .where("status", "accepted")
+      .where("friend_id", friend.id)
+      .first();
+
+    if (userFriend) {
+      const chat = await user
+        .related("chats")
+        .pivotQuery()
+        .where("friend_id", friend.id)
+        .first();
+
+      if (!chat) {
+        await user.related("chats").attach({
+          [friend.id]: {
+            created_at: DateTime.now(),
+            updated_at: DateTime.now(),
+          },
+        });
+        await friend.related("chats").attach({
+          [user.id]: {
+            created_at: DateTime.now(),
+            updated_at: DateTime.now(),
+          },
+        });
+      }
+
+      const userChat = await user
+        .related("chats")
+        .pivotQuery()
+        .where("friend_id", friend_id)
+        .firstOrFail();
+
+      const friendChat = await friend
+        .related("chats")
+        .pivotQuery()
+        .where("friend_id", user.id)
+        .firstOrFail();
+
+      const messages = await Message.query()
+        .orderBy("created_at", "asc")
+        .where("userFriendChatId", userChat.id);
+
+      const friendMessages = await Message.query()
+        .orderBy("created_at", "asc")
+        .where("userFriendChatId", friendChat.id);
+
+      friendMessages.map((m) => {
+        if (m.senderId === friend_id) {
+          m.isSeen = true;
+        }
+        m.save();
+      });
+      messages.map((m) => {
+        if (m.senderId === friend_id) {
+          m.isSeen = true;
+        }
+        m.save();
+      });
+      const friend_details = await User.findByOrFail("id", friend_id);
+
+      return response.status(200).send({
+        chat: {
+          ...userChat,
+          friend_details,
+          messages: messages.map((m) => {
+            const decryptedMessage = { ...m.$attributes };
+            if (decryptedMessage.isEncrypted) {
+              decryptedMessage.isEncrypted = false;
+              decryptedMessage.content = Encryption.decrypt(
+                m.content
+              ) as string;
+            }
+            return decryptedMessage;
+          }),
+        },
+      });
+    } else {
+      throw "Not a friend to chat.";
+    }
+  } catch (e) {
+    return response.status(404).json({ message: e ?? "Something went wrong." });
+  }
+});
+
+Route.post("/recentChats", async ({ request, response }) => {
+  try {
+    const { token } = request.all();
+    const decoded = jwt.verify(token, "mySuperSecretKey");
+    const user = await User.findByOrFail("email", decoded.email);
+
+    const userChats = await user
+      .related("chats")
+      .pivotQuery()
+      .where("user_id", user.id);
+
+    // Fetch the last message for each chat
+    const chatsWithLastMessage = await Promise.all(
+      userChats.map(async (chat) => {
+        const lastMessage = await Message.query()
+          .orderBy("created_at", "desc")
+          .where("userFriendChatId", chat.id)
+          .first();
+        const messages = await Message.query()
+          .orderBy("created_at", "asc")
+          .where("userFriendChatId", chat.id);
+        const friend = await User.findByOrFail("id", chat.friend_id);
+        const friendChat = await friend
+          .related("chats")
+          .pivotQuery()
+          .where("friend_id", user.id)
+          .firstOrFail();
+
+        const friendMessages = await Message.query()
+          .orderBy("created_at", "asc")
+          .where("userFriendChatId", friendChat.id);
+
+        friendMessages.map((m) => {
+          if (m.senderId === friend.id) {
+            m.isSeen = true;
+          }
+          m.save();
+        });
+        messages.map((m) => {
+          if (m.senderId === friend.id) {
+            m.isSeen = true;
+          }
+          m.save();
+        });
+        const friend_details = await User.findByOrFail("id", chat.friend_id);
+        return {
+          chat: {
+            ...chat,
+            friend_details,
+            messages: messages.map((m) => {
+              const decryptedMessage = { ...m.$attributes };
+              if (decryptedMessage.isEncrypted) {
+                decryptedMessage.isEncrypted = false;
+                decryptedMessage.content = Encryption.decrypt(
+                  m.content
+                ) as string;
+              }
+              return decryptedMessage;
+            }),
+          },
+          lastMessage,
+        };
+      })
+    );
+
+    // Sort the chats based on the last message's created_at timestamp
+    const sortedChats = chatsWithLastMessage.sort((a, b) => {
+      if (!a.lastMessage) return 1; // Place chats without messages at the end
+      if (!b.lastMessage) return -1; // Place chats without messages at the end
+
+      return b.lastMessage.id - a.lastMessage.id;
+    });
+
+    return response.status(200).send({
+      recentChats: sortedChats.map((item) => item.chat),
+    });
+  } catch (e) {
+    return response.status(404).json({ message: e });
   }
 });
