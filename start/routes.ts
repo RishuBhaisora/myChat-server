@@ -194,6 +194,7 @@ Route.post("/friendRequests", async ({ request, response }) => {
 Route.post("/sendMessage", async ({ request, response }) => {
   try {
     const { token, friend_id, message } = request.all();
+    
     const decoded = jwt.verify(token, "mySuperSecretKey");
     const user = await User.findByOrFail("email", decoded.email);
     const friend = await User.findByOrFail("id", friend_id);
@@ -246,6 +247,14 @@ Route.post("/sendMessage", async ({ request, response }) => {
       m.save();
     });
     const friend_details = await User.findByOrFail("id", friend_id);
+     // Emit the message using WebSocket
+     import('App/Services/Ws').then((Ws) => {
+      Ws.default.io.to(friend_id).emit('receiveMessage', {
+        senderId: user.id,
+        content: message,
+        isEncrypted: false,
+      });
+    });
     return response.status(200).send({
       chat: {
         ...userChat,
