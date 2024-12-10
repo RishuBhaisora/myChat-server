@@ -13,8 +13,10 @@ export default class AppProvider {
   }
 
   public async ready () {
-    // App is ready
-    await import('../start/socket')
+    // App is ready    
+    if (this.app.environment === "web") {
+      await import('../start/socket')
+    }
   }
 
   public async shutdown () {

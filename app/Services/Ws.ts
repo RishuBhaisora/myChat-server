@@ -14,11 +14,11 @@ class Ws {
     this.booted = true;
 
     // Initialize the WebSocket server
-    this.io = new Server(AdonisServer.instance!, {
+    this.io = new Server(AdonisServer.instance, {
       cors: {
-        origin: '*', // Allow cross-origin requests, adjust as needed
+        origin: '*', // Allow all origins or specify allowed ones
       },
-    });
+    });    
   }
 }
 
