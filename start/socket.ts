@@ -12,30 +12,16 @@ const userSockets = new Map();
  */
 
 Ws.io.on("connection", async (socket) => {
-  const token = socket.handshake.query.token;
+  const token = socket.handshake.auth.token;
 
   try {
     const decoded = jwt.verify(token, "mySuperSecretKey");
     const user = await User.findByOrFail("email", decoded.email);
-    const userId = user.id;
+    userSockets.set(user.id, socket.id);
 
-    if (!userSockets.has(userId)) {
-      userSockets.set(userId, []);
-    }
-    userSockets.get(userId).push(socket.id);
-
-    console.log(userSockets,userId);
-    
     // Handle disconnection
     socket.on("disconnect", () => {
-      const sockets = userSockets.get(userId) || [];
-      userSockets.set(
-        userId,
-        sockets.filter((id) => id !== socket.id)
-      );
-      if (userSockets.get(userId).length === 0) {
-        userSockets.delete(userId);
-      }
+      userSockets.delete(user.id);
     });
   } catch (err) {
     socket.emit("error", {
@@ -47,8 +33,6 @@ Ws.io.on("connection", async (socket) => {
   socket.on("message", async (data) => {
     try {
       const { friend_id, message } = data;
-      console.log("Message received:", message, data);
-
       const decoded = jwt.verify(token, "mySuperSecretKey");
       const user = await User.findByOrFail("email", decoded.email);
       const friend = await User.findByOrFail("id", friend_id);
@@ -100,32 +84,36 @@ Ws.io.on("connection", async (socket) => {
         }
         m.save();
       });
-      console.log('here1');
 
-      const friend_details = await User.findByOrFail("id", friend_id);
-      const targetSockets = userSockets.get(friend_id);
-      
-      if (targetSockets && targetSockets.length > 0) {
-        targetSockets.forEach((socketId) => {
-          console.log('here');
-          
-          socket.to(socketId).emit("message", {
+      const payload = {
+        messages: messages.map((m) => {
+          const decryptedMessage = { ...m.$attributes };
+          if (decryptedMessage.isEncrypted) {
+            decryptedMessage.isEncrypted = false;
+            decryptedMessage.content = Encryption.decrypt(m.content) as string;
+          }
+          return decryptedMessage;
+        }),
+      };
+
+      socket.send({
+        chat: {
+          ...userChat,
+          ...payload,
+          friend_details: friend,
+        },
+      });
+      if (userSockets.has(friend_id)) {
+        const targetSocketId = userSockets.get(friend_id);
+        if (targetSocketId) {
+          socket.to(targetSocketId).emit("message", {
             chat: {
-              ...userChat,
-              friend_details,
-              messages: messages.map((m) => {
-                const decryptedMessage = { ...m.$attributes };
-                if (decryptedMessage.isEncrypted) {
-                  decryptedMessage.isEncrypted = false;
-                  decryptedMessage.content = Encryption.decrypt(
-                    m.content
-                  ) as string;
-                }
-                return decryptedMessage;
-              }),
+              ...friendChat,
+              ...payload,
+              friend_details: user,
             },
           });
-        });
+        }
       }
     } catch (error) {
       socket.emit("error", {
