@@ -1,27 +1,140 @@
-import Ws from 'App/Services/Ws';
+import Ws from "App/Services/Ws";
+const jwt = require("jsonwebtoken");
+import User from "App/Models/User";
+import Encryption from "@ioc:Adonis/Core/Encryption";
+import Message from "App/Models/ChatMessage";
 
 Ws.boot();
 
+const userSockets = new Map();
 /**
  * Listen for incoming socket connections
  */
 
-Ws.io.on('connection', (socket) => {
-  console.log(`Client connected: ${socket.id}`);
+Ws.io.on("connection", async (socket) => {
+  const token = socket.handshake.query.token;
 
-  // Handle custom events
-  socket.on('sendMessage', async (data) => {
-    console.log('Message received:', data);
-    // Broadcast the message to the recipient
-    socket.to(data.friendId).emit('receiveMessage', data);
+  try {
+    const decoded = jwt.verify(token, "mySuperSecretKey");
+    const user = await User.findByOrFail("email", decoded.email);
+    const userId = user.id;
+
+    if (!userSockets.has(userId)) {
+      userSockets.set(userId, []);
+    }
+    userSockets.get(userId).push(socket.id);
+
+    console.log(userSockets,userId);
+    
+    // Handle disconnection
+    socket.on("disconnect", () => {
+      const sockets = userSockets.get(userId) || [];
+      userSockets.set(
+        userId,
+        sockets.filter((id) => id !== socket.id)
+      );
+      if (userSockets.get(userId).length === 0) {
+        userSockets.delete(userId);
+      }
+    });
+  } catch (err) {
+    socket.emit("error", {
+      message: "Invalid or missing token. Connection rejected.",
+    });
+    socket.disconnect();
+  }
+
+  socket.on("message", async (data) => {
+    try {
+      const { friend_id, message } = data;
+      console.log("Message received:", message, data);
+
+      const decoded = jwt.verify(token, "mySuperSecretKey");
+      const user = await User.findByOrFail("email", decoded.email);
+      const friend = await User.findByOrFail("id", friend_id);
+
+      const userChat = await user
+        .related("chats")
+        .pivotQuery()
+        .where("friend_id", friend_id)
+        .firstOrFail();
+
+      const friendChat = await friend
+        .related("chats")
+        .pivotQuery()
+        .where("friend_id", user.id)
+        .firstOrFail();
+      const encryptedMessage = Encryption.encrypt(message);
+      const userMessage = new Message();
+      userMessage.fill({
+        senderId: user.id,
+        userFriendChatId: userChat.id,
+        content: encryptedMessage,
+      });
+      const friendMessage = new Message();
+      friendMessage.fill({
+        senderId: user.id,
+        userFriendChatId: friendChat.id,
+        content: encryptedMessage,
+      });
+      await userMessage.save();
+      await friendMessage.save();
+
+      const messages = await Message.query()
+        .orderBy("created_at", "asc")
+        .where("userFriendChatId", userChat.id);
+
+      const friendMessages = await Message.query()
+        .orderBy("created_at", "asc")
+        .where("userFriendChatId", friendChat.id);
+
+      friendMessages.map((m) => {
+        if (m.senderId === friend_id) {
+          m.isSeen = true;
+        }
+        m.save();
+      });
+      messages.map((m) => {
+        if (m.senderId === friend_id) {
+          m.isSeen = true;
+        }
+        m.save();
+      });
+      console.log('here1');
+
+      const friend_details = await User.findByOrFail("id", friend_id);
+      const targetSockets = userSockets.get(friend_id);
+      
+      if (targetSockets && targetSockets.length > 0) {
+        targetSockets.forEach((socketId) => {
+          console.log('here');
+          
+          socket.to(socketId).emit("message", {
+            chat: {
+              ...userChat,
+              friend_details,
+              messages: messages.map((m) => {
+                const decryptedMessage = { ...m.$attributes };
+                if (decryptedMessage.isEncrypted) {
+                  decryptedMessage.isEncrypted = false;
+                  decryptedMessage.content = Encryption.decrypt(
+                    m.content
+                  ) as string;
+                }
+                return decryptedMessage;
+              }),
+            },
+          });
+        });
+      }
+    } catch (error) {
+      socket.emit("error", {
+        message: "Something went wrong",
+      });
+    }
   });
 
-    // Handle custom events
-    socket.on('receiveMessage', async (data) => {
-      console.log('Message received:', data);
-    });
-
-  socket.on('disconnect', () => {
+  socket.on("disconnect", () => {
     console.log(`Client disconnected: ${socket.id}`);
   });
 });
