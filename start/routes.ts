@@ -194,6 +194,7 @@ Route.post("/friendRequests", async ({ request, response }) => {
 Route.post("/sendMessage", async ({ request, response }) => {
   try {
     const { token, friend_id, message } = request.all();
+    
     const decoded = jwt.verify(token, "mySuperSecretKey");
     const user = await User.findByOrFail("email", decoded.email);
     const friend = await User.findByOrFail("id", friend_id);
