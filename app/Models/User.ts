@@ -6,8 +6,11 @@ import {
   BaseModel,
   manyToMany,
   ManyToMany,
+  HasMany,
+  hasMany,
 } from "@ioc:Adonis/Lucid/Orm";
 import UserFriendChat from "./UserFriendChat";
+import Notification from "./Notification";
 
 export default class User extends BaseModel {
   @column({ isPrimary: true })
@@ -40,7 +43,6 @@ export default class User extends BaseModel {
     relatedKey: "id",
     pivotForeignKey: "user_id",
     pivotRelatedForeignKey: "friend_id",
-
   })
   public friends: ManyToMany<typeof User>;
 
@@ -70,10 +72,13 @@ export default class User extends BaseModel {
     relatedKey: "id",
     pivotForeignKey: "user_id",
     pivotRelatedForeignKey: "friend_id",
-    pivotColumns:["messages"]
+    pivotColumns: ["messages"],
   })
   public chats: ManyToMany<typeof UserFriendChat>;
-  
+
+  @hasMany(() => Notification)
+  public notifications: HasMany<typeof Notification>;
+
   @beforeSave()
   public static async hashPassword(user: User) {
     if (user.$dirty.password) {

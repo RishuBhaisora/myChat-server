@@ -63,7 +63,6 @@ Route.post("/resetPassword", async ({ response, request }) => {
   }
 });
 
-
 Route.get("/verify/:email", async ({ params, response, request }) => {
   const user = await User.findBy("email", params.email);
   if (request.hasValidSignature()) {
@@ -194,7 +193,7 @@ Route.post("/friendRequests", async ({ request, response }) => {
 Route.post("/sendMessage", async ({ request, response }) => {
   try {
     const { token, friend_id, message } = request.all();
-    
+
     const decoded = jwt.verify(token, "mySuperSecretKey");
     const user = await User.findByOrFail("email", decoded.email);
     const friend = await User.findByOrFail("id", friend_id);
@@ -255,9 +254,7 @@ Route.post("/sendMessage", async ({ request, response }) => {
           const decryptedMessage = { ...m.$attributes };
           if (decryptedMessage.isEncrypted) {
             decryptedMessage.isEncrypted = false;
-            decryptedMessage.content = Encryption.decrypt(
-              m.content
-            ) as string;
+            decryptedMessage.content = Encryption.decrypt(m.content) as string;
           }
           return decryptedMessage;
         }),
@@ -437,6 +434,43 @@ Route.post("/recentChats", async ({ request, response }) => {
 
     return response.status(200).send({
       recentChats: sortedChats.map((item) => item.chat),
+    });
+  } catch (e) {
+    return response.status(404).json({ message: e });
+  }
+});
+
+Route.post("/getNotifications", async ({ request, response }) => {
+  try {
+    const { token } = request.all();
+    const decoded = jwt.verify(token, "mySuperSecretKey");
+    const user = await User.findByOrFail("email", decoded.email);
+    const notifications = await user.related("notifications").query();
+
+    return response.status(200).send({ notifications });
+  } catch (e) {
+    return response.status(404).json({ message: e });
+  }
+});
+
+Route.post("/readAllNotifications", async ({ request, response }) => {
+  try {
+    const { token } = request.all();
+    const decoded = jwt.verify(token, "mySuperSecretKey");
+    const user = await User.findByOrFail("email", decoded.email);
+
+    const notifications = await user.related("notifications").query();
+
+    for (const notification of notifications) {
+      if (!notification.seen) {
+        notification.seen = true;
+        await notification.save();
+      }
+    }
+
+    const updatedNotifications = await user.related("notifications").query();
+    return response.status(200).send({
+      notifications: updatedNotifications,
     });
   } catch (e) {
     return response.status(404).json({ message: e });

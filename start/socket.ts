@@ -6,7 +6,7 @@ import Message from "App/Models/ChatMessage";
 
 Ws.boot();
 
-const userSockets = new Map();
+export const userSockets = new Map();
 /**
  * Listen for incoming socket connections
  */
