@@ -2,6 +2,8 @@ import type { HttpContextContract } from "@ioc:Adonis/Core/HttpContext";
 import User from "App/Models/User";
 import { DateTime } from "luxon";
 const jwt = require("jsonwebtoken");
+import Ws from "App/Services/Ws";
+import Notification from "App/Models/Notification";
 
 const secret = "mySuperSecretKey";
 export default class FriendshipsController {
@@ -58,6 +60,22 @@ export default class FriendshipsController {
               ...data,
               friend_details,
             });
+          }
+
+          await Notification.create({
+            userId: friend.id,
+            message: `${user.name} sent you a friend request`,
+            seen: false,
+          });
+
+          const { userSockets } = require("../../../start/socket");
+          const friendSocketId = userSockets.get(friend.id);
+          if (friendSocketId) {
+            const notifications = await Notification.query().where(
+              "userId",
+              friend.id
+            );
+            Ws.io.to(friendSocketId).emit("notification", { notifications });
           }
 
           return response.status(200).json({
@@ -150,6 +168,22 @@ export default class FriendshipsController {
             });
           }
 
+          await Notification.create({
+            userId: friend.id,
+            message: `${user.name} accepted your friend request`,
+            seen: false,
+          });
+
+          const { userSockets } = require("../../../start/socket");
+          const friendSocketId = userSockets.get(friend.id);
+          if (friendSocketId) {
+            const notifications = await Notification.query().where(
+              "userId",
+              friend.id
+            );
+            Ws.io.to(friendSocketId).emit("notification", { notifications });
+          }
+
           return response.status(200).json({
             success: true,
             message: "Accepted successfully.",
@@ -206,6 +240,22 @@ export default class FriendshipsController {
               friend_id: data.user_id,
               friend_details,
             });
+          }
+
+          await Notification.create({
+            userId: friend.id,
+            message: `${user.name} rejected your friend request`,
+            seen: false,
+          });
+
+          const { userSockets } = require("../../../start/socket");
+          const friendSocketId = userSockets.get(friend.id);
+          if (friendSocketId) {
+            const notifications = await Notification.query().where(
+              "userId",
+              friend.id
+            );
+            Ws.io.to(friendSocketId).emit("notification", { notifications });
           }
 
           return response.status(200).json({
@@ -318,9 +368,25 @@ export default class FriendshipsController {
               friend_details,
             });
           }
-          
-          await user.related("chats").detach([friend.id])
-          await friend.related("chats").detach([user.id])
+
+          await user.related("chats").detach([friend.id]);
+          await friend.related("chats").detach([user.id]);
+
+          await Notification.create({
+            userId: friend.id,
+            message: `${user.name} removed you from friends`,
+            seen: false,
+          });
+
+          const { userSockets } = require("../../../start/socket");
+          const friendSocketId = userSockets.get(friend.id);
+          if (friendSocketId) {
+            const notifications = await Notification.query().where(
+              "userId",
+              friend.id
+            );
+            Ws.io.to(friendSocketId).emit("notification", { notifications });
+          }
 
           return response.status(200).json({
             success: true,

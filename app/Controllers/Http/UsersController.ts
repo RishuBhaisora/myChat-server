@@ -49,7 +49,7 @@ export default class UsersController {
           .subject("Welcome to TalkBase, Please verify your email address ")
           .html(`Hi ${user.name},<br><br>
           Please click on the following link to verify your email address:<br>
-          <a href="${baseUrl}${verificationUrl}">Click to varify</a><br><br>
+          <a href="${baseUrl}${verificationUrl}">Click to verify</a><br><br>
           If you didn't request this email, you can safely ignore it.`);
       });
       return response.created({
@@ -84,10 +84,10 @@ export default class UsersController {
       return response.unauthorized({message: "Invalid Email"});
     }
     if (!user.verified_email) {
-      return response.unauthorized({message: "Email is not varified, Please check your gmail to varify"});
+      return response.unauthorized({message: "Email is not verified, Please check your gmail to verify"});
     }
-    const varified = await Hash.verify(user.password, password);
-    if (!varified) {
+    const verified = await Hash.verify(user.password, password);
+    if (!verified) {
       return response.unauthorized({message: "Invalid Password"});
     }
     const token = jwt.sign({ email }, secret, {

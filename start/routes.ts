@@ -63,7 +63,6 @@ Route.post("/resetPassword", async ({ response, request }) => {
   }
 });
 
-
 Route.get("/verify/:email", async ({ params, response, request }) => {
   const user = await User.findBy("email", params.email);
   if (request.hasValidSignature()) {
@@ -186,83 +185,6 @@ Route.post("/friendRequests", async ({ request, response }) => {
       });
     }
     return response.status(200).send(modifiedRequests);
-  } catch (e) {
-    return response.status(404).json({ message: "Something went wrong." });
-  }
-});
-
-Route.post("/sendMessage", async ({ request, response }) => {
-  try {
-    const { token, friend_id, message } = request.all();
-    
-    const decoded = jwt.verify(token, "mySuperSecretKey");
-    const user = await User.findByOrFail("email", decoded.email);
-    const friend = await User.findByOrFail("id", friend_id);
-
-    const userChat = await user
-      .related("chats")
-      .pivotQuery()
-      .where("friend_id", friend_id)
-      .firstOrFail();
-
-    const friendChat = await friend
-      .related("chats")
-      .pivotQuery()
-      .where("friend_id", user.id)
-      .firstOrFail();
-    const encryptedMessage = Encryption.encrypt(message);
-    const userMessage = new Message();
-    userMessage.fill({
-      senderId: user.id,
-      userFriendChatId: userChat.id,
-      content: encryptedMessage,
-    });
-    const friendMessage = new Message();
-    friendMessage.fill({
-      senderId: user.id,
-      userFriendChatId: friendChat.id,
-      content: encryptedMessage,
-    });
-    await userMessage.save();
-    await friendMessage.save();
-
-    const messages = await Message.query()
-      .orderBy("created_at", "asc")
-      .where("userFriendChatId", userChat.id);
-
-    const friendMessages = await Message.query()
-      .orderBy("created_at", "asc")
-      .where("userFriendChatId", friendChat.id);
-
-    friendMessages.map((m) => {
-      if (m.senderId === friend_id) {
-        m.isSeen = true;
-      }
-      m.save();
-    });
-    messages.map((m) => {
-      if (m.senderId === friend_id) {
-        m.isSeen = true;
-      }
-      m.save();
-    });
-    const friend_details = await User.findByOrFail("id", friend_id);
-    return response.status(200).send({
-      chat: {
-        ...userChat,
-        friend_details,
-        messages: messages.map((m) => {
-          const decryptedMessage = { ...m.$attributes };
-          if (decryptedMessage.isEncrypted) {
-            decryptedMessage.isEncrypted = false;
-            decryptedMessage.content = Encryption.decrypt(
-              m.content
-            ) as string;
-          }
-          return decryptedMessage;
-        }),
-      },
-    });
   } catch (e) {
     return response.status(404).json({ message: "Something went wrong." });
   }
@@ -437,6 +359,43 @@ Route.post("/recentChats", async ({ request, response }) => {
 
     return response.status(200).send({
       recentChats: sortedChats.map((item) => item.chat),
+    });
+  } catch (e) {
+    return response.status(404).json({ message: e });
+  }
+});
+
+Route.post("/getNotifications", async ({ request, response }) => {
+  try {
+    const { token } = request.all();
+    const decoded = jwt.verify(token, "mySuperSecretKey");
+    const user = await User.findByOrFail("email", decoded.email);
+    const notifications = await user.related("notifications").query();
+
+    return response.status(200).send({ notifications });
+  } catch (e) {
+    return response.status(404).json({ message: e });
+  }
+});
+
+Route.post("/readAllNotifications", async ({ request, response }) => {
+  try {
+    const { token } = request.all();
+    const decoded = jwt.verify(token, "mySuperSecretKey");
+    const user = await User.findByOrFail("email", decoded.email);
+
+    const notifications = await user.related("notifications").query();
+
+    for (const notification of notifications) {
+      if (!notification.seen) {
+        notification.seen = true;
+        await notification.save();
+      }
+    }
+
+    const updatedNotifications = await user.related("notifications").query();
+    return response.status(200).send({
+      notifications: updatedNotifications,
     });
   } catch (e) {
     return response.status(404).json({ message: e });
