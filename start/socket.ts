@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 import User from "App/Models/User";
 import Encryption from "@ioc:Adonis/Core/Encryption";
 import Message from "App/Models/ChatMessage";
+import Notification from "App/Models/Notification";
 
 Ws.boot();
 
@@ -114,6 +115,23 @@ Ws.io.on("connection", async (socket) => {
             },
           });
         }
+      }
+
+      await Notification.create({
+        userId: friend.id,
+        message: `${user.name} sent you a message "${
+          Encryption.decrypt(encryptedMessage) as string
+        }"`,
+        seen: false,
+      });
+
+      const friendSocketId = userSockets.get(friend.id);
+      if (friendSocketId) {
+        const notifications = await Notification.query().where(
+          "userId",
+          friend.id
+        );
+        socket.to(friendSocketId).emit("notification", { notifications });
       }
     } catch (error) {
       socket.emit("error", {
